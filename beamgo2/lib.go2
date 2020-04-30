@@ -1,0 +1,52 @@
+package beamgo2
+
+import (
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
+)
+
+// type DoFn(type T1, T2) interface {
+//     Apply(context.Context, T1) T2
+// }
+// 
+// type doFnSimple(type T1, T2) struct {
+//     f func(T1) T2
+// }
+// 
+// func DoFnSimple(type T1, T2)(f func(T1) T2) DoFn {
+//     return doFnSimple(T1, T2){f}
+// }
+// 
+// func (d *doFnSimple) Apply(ctx context.Context, input T1) T2
+// type DoFnKV(type K, V, R) interface {
+//     Apply(context.Context, K, V) R
+// }
+
+type TypedPCollection(type T) struct {
+    raw beam.PCollection
+}
+
+type TypedPCollectionKV(type K, V) struct {
+    raw beam.PCollection
+}
+
+func ParDo(type T1, T2)(s beam.Scope, f func(T1, func(T2)), pcol TypedPCollection(T1)) TypedPCollection(T2) {
+    return TypedPCollection(T2){beam.ParDo(s, f, pcol.raw)}
+}
+
+func ParDoKV(type K, V, R)(s beam.Scope, f func(K, V) R, pcol TypedPCollectionKV(K, V)) TypedPCollection(R) {
+    return TypedPCollection(R){beam.ParDo(s, f, pcol.raw)}
+}
+
+func Count(type T)(s beam.Scope, pcol TypedPCollection(T)) TypedPCollectionKV(T, int) {
+    return TypedPCollectionKV(T, int){stats.Count(s, pcol.raw)}
+}
+
+func ToTypedPCollection(type T)(pcol beam.PCollection) TypedPCollection(T) {
+    return TypedPCollection(T){pcol}
+}
+
+func Write(type T)(s beam.Scope, file string, pcol TypedPCollection(T)) {
+    textio.Write(s, file, pcol.raw)
+}

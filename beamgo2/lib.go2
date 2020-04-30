@@ -1,11 +1,35 @@
 package beamgo2
 
 import (
+    "context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
+type DoFn(type T1, T2) struct {
+    f interface{}
+}
+
+type DoFnKV(type K, V, R) struct {
+    f interface{}
+}
+
+func DoFnEmit(type T1, T2)(f func(T1, func(T2))) DoFn(T1, T2) {
+    return DoFn(T1, T2){f}
+}
+
+func DoFnContextEmit(type T1, T2)(f func(context.Context, T1, func(T2))) DoFn(T1, T2) {
+    return DoFn(T1, T2){f}
+}
+
+func DoFnKVSimple(type K, V, R)(f func(K, V) R) DoFnKV(K, V, R) {
+    return DoFnKV(K, V, R){f}
+}
+
+// contract DoFn(F, T1, T2) {
+//     F (func(T1) T2, func(T1, func(T2)))
+// }
 // type DoFn(type T1, T2) interface {
 //     Apply(context.Context, T1) T2
 // }
@@ -31,12 +55,12 @@ type TypedPCollectionKV(type K, V) struct {
     raw beam.PCollection
 }
 
-func ParDo(type T1, T2)(s beam.Scope, f func(T1, func(T2)), pcol TypedPCollection(T1)) TypedPCollection(T2) {
-    return TypedPCollection(T2){beam.ParDo(s, f, pcol.raw)}
+func ParDo(type T1, T2)(s beam.Scope, f DoFn(T1, T2), pcol TypedPCollection(T1)) TypedPCollection(T2) {
+    return TypedPCollection(T2){beam.ParDo(s, f.f, pcol.raw)}
 }
 
-func ParDoKV(type K, V, R)(s beam.Scope, f func(K, V) R, pcol TypedPCollectionKV(K, V)) TypedPCollection(R) {
-    return TypedPCollection(R){beam.ParDo(s, f, pcol.raw)}
+func ParDoKV(type K, V, R)(s beam.Scope, f DoFnKV(K, V, R), pcol TypedPCollectionKV(K, V)) TypedPCollection(R) {
+    return TypedPCollection(R){beam.ParDo(s, f.f, pcol.raw)}
 }
 
 func Count(type T)(s beam.Scope, pcol TypedPCollection(T)) TypedPCollectionKV(T, int) {

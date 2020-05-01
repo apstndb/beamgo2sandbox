@@ -41,11 +41,11 @@ func main() {
 	// tokenizes the text line into individual words. The ParDo returns a
 	// PCollection of type string, where each element is an individual word in
 	// Shakespeare's collected texts.
-	words := beamgo2.ParDo(s, func(line string, emit func(string)) {
+	words := beamgo2.ParDo(s, beamgo2.DoFnEmit(func(line string, emit func(string)) {
 		for _, word := range wordRE.FindAllString(line, -1) {
 			emit(word)
 		}
-	}, lines)
+	}), lines)
 
 	// Concept #3: Invoke the stats.Count transform on our PCollection of
 	// individual words. The Count transform returns a new PCollection of
@@ -56,9 +56,9 @@ func main() {
 	// Use a ParDo to format our PCollection of word counts into a printable
 	// string, suitable for writing to an output file. When each element
 	// produces exactly one element, the DoFn can simply return it.
-	formatted := beamgo2.ParDoKV(s, func(w string, c int) string {
+	formatted := beamgo2.ParDoKV(s, beamgo2.DoFnKVSimple(func(w string, c int) string {
 		return fmt.Sprintf("%s: %v", w, c)
-	}, counted)
+	}), counted)
 
 	// Concept #4: Invoke textio.Write at the end of the pipeline to write
 	// the contents of a PCollection (in this case, our PCollection of

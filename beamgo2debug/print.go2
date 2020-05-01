@@ -1,0 +1,22 @@
+package beamgo2debug
+import (
+	"github.com/apstndb/beamgo2sandbox/beamgo2"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+)
+
+func Print(type T)(s beam.Scope, col beamgo2.TypedPCollection(T)) beamgo2.TypedPCollection(T) {
+	return beamgo2.ToTypedPCollection(T)(debug.Printf(s, "Elm: %v", col.Raw))
+}
+
+func Head(type T)(s beam.Scope, col beamgo2.TypedPCollection(T), n int) beamgo2.TypedPCollection(T) {
+    return beamgo2.ToTypedPCollection(T)(debug.Head(s, col.Raw, n))
+}
+
+func PrintKV(type K, V)(s beam.Scope, col beamgo2.TypedPCollectionKV(K, V)) beamgo2.TypedPCollectionKV(K, V) {
+	return beamgo2.ToTypedPCollectionKV(K, V)(debug.Printf(s, "Elm: %v", col.Raw))
+}
+
+func HeadKV(type K, V)(s beam.Scope, col beamgo2.TypedPCollectionKV(K, V), n int) beamgo2.TypedPCollectionKV(K, V) {
+    return beamgo2.ToTypedPCollectionKV(K, V)(debug.Head(s, col.Raw, n))
+}

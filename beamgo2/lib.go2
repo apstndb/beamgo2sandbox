@@ -11,12 +11,44 @@ type DoFn(type T1, T2) struct {
     f interface{}
 }
 
+type DoFn2(type T1, R1, R2) struct {
+    f interface{}
+}
+
+type DoFn2Side1(type T1, T2, R1, R2) struct {
+    f interface{}
+}
+
+type DoFn0Side2(type T1, T2, T3) struct {
+    f interface{}
+}
+
 type DoFnKV(type K, V, R) struct {
     f interface{}
 }
 
 func DoFnEmit(type T1, T2)(f func(T1, func(T2))) DoFn(T1, T2) {
     return DoFn(T1, T2){f}
+}
+
+contract doFnStructEmit(S, T, R) {
+    S ProcessElement(T, func(R))
+}
+
+func DoFnStructEmit(type S, T, R doFnStructEmit(S, T, R))(f S) DoFn(T, R) {
+    return DoFn(T, R){f}
+}
+
+func DoFn2Emit(type T1, R1, R2)(f func(T1, func(R1), func(R2))) DoFn2(T1, R1, R2) {
+    return DoFn2(T1, R1, R2){f}
+}
+
+func DoFn2Side1Emit(type T1, T2, R1, R2)(f func(T1, []T2, func(R1), func(R2))) DoFn2Side1(T1, T2, R1, R2) {
+    return DoFn2Side1(T1, T2, R1, R2){f}
+}
+
+func DoFn0Side2Reiter(type T1, T2, T3)(f func(T1, func(*T2) bool, func(*T3) bool)) DoFn0Side2(T1, T2, T3) {
+    return DoFn0Side2(T1, T2, T3){f}
 }
 
 func DoFnContextEmit(type T1, T2)(f func(context.Context, T1, func(T2))) DoFn(T1, T2) {
@@ -48,29 +80,60 @@ func DoFnKVSimple(type K, V, R)(f func(K, V) R) DoFnKV(K, V, R) {
 // }
 
 type TypedPCollection(type T) struct {
-    raw beam.PCollection
+    Raw beam.PCollection
 }
 
 type TypedPCollectionKV(type K, V) struct {
-    raw beam.PCollection
+    Raw beam.PCollection
 }
 
+func ParDo0Side2(type T1, T2, T3)(s beam.Scope, f DoFn0Side2(T1, T2, T3), pcol TypedPCollection(T1), side1 TypedPCollection(T2), side2 TypedPCollection(T3)) {
+    beam.ParDo(s, f.f, pcol.Raw, beam.SideInput{Input: side1.Raw}, beam.SideInput{Input: side2.Raw})
+}
+
+
 func ParDo(type T1, T2)(s beam.Scope, f DoFn(T1, T2), pcol TypedPCollection(T1)) TypedPCollection(T2) {
-    return TypedPCollection(T2){beam.ParDo(s, f.f, pcol.raw)}
+    return TypedPCollection(T2){beam.ParDo(s, f.f, pcol.Raw)}
+}
+
+func ParDo2(type T1, R1, R2)(s beam.Scope, f DoFn2(T1, R1, R2), pcol TypedPCollection(T1)) (_ TypedPCollection(R1), _ TypedPCollection(R2)) {
+    pcol1, pcol2 := beam.ParDo2(s, f.f, pcol.Raw)
+    return ToTypedPCollection(R1)(pcol1), ToTypedPCollection(R2)(pcol2)
+}
+
+func ParDo2Side1(type T1, T2, R1, R2)(s beam.Scope, f DoFn2Side1(T1, T2, R1, R2), pcol TypedPCollection(T1), side1 TypedPCollection(T2)) (_ TypedPCollection(R1), _ TypedPCollection(R2)) {
+    pcol1, pcol2 := beam.ParDo2(s, f.f, pcol.Raw, beam.SideInput{Input: side1.Raw})
+    return ToTypedPCollection(R1)(pcol1), ToTypedPCollection(R2)(pcol2)
 }
 
 func ParDoKV(type K, V, R)(s beam.Scope, f DoFnKV(K, V, R), pcol TypedPCollectionKV(K, V)) TypedPCollection(R) {
-    return TypedPCollection(R){beam.ParDo(s, f.f, pcol.raw)}
+    return TypedPCollection(R){beam.ParDo(s, f.f, pcol.Raw)}
 }
 
 func Count(type T)(s beam.Scope, pcol TypedPCollection(T)) TypedPCollectionKV(T, int) {
-    return TypedPCollectionKV(T, int){stats.Count(s, pcol.raw)}
+    return TypedPCollectionKV(T, int){stats.Count(s, pcol.Raw)}
 }
 
 func ToTypedPCollection(type T)(pcol beam.PCollection) TypedPCollection(T) {
     return TypedPCollection(T){pcol}
 }
 
+func ToTypedPCollectionKV(type K, V)(pcol beam.PCollection) TypedPCollectionKV(K, V) {
+    return TypedPCollectionKV(K, V){pcol}
+}
+
 func Write(type T)(s beam.Scope, file string, pcol TypedPCollection(T)) {
-    textio.Write(s, file, pcol.raw)
+    textio.Write(s, file, pcol.Raw)
+}
+
+func Read2(type T)(s beam.Scope, file string) TypedPCollection(T) {
+    return ToTypedPCollection(T)(textio.Read(s, file))
+}
+
+func Read(s beam.Scope, file string) TypedPCollection(string) {
+    return ToTypedPCollection(string)(textio.Read(s, file))
+}
+
+func Impulse(s beam.Scope) TypedPCollection([]byte) {
+	return ToTypedPCollection([]byte)(beam.Impulse(s))
 }

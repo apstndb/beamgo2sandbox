@@ -23,8 +23,8 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/apstndb/beamgo2sandbox/beamgo2"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
@@ -36,16 +36,16 @@ var (
 
 // stitch constructs two composite PTranformations that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
-func stitch(s beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
+func stitch(s beam.Scope, words beamgo2.TypedPCollection(string)) (_ beamgo2.TypedPCollection(string), _ beamgo2.TypedPCollection(string)) {
 	ping := s.Scope("ping")
 	pong := ping // s.Scope("pong")
 
 	// NOTE(herohde) 2/23/2017: Dataflow does not allow cyclic composite structures.
 
-	small1, big1 := beam.ParDo2(ping, multiFn, words, beam.SideInput{Input: words}) // self-sample (ping)
-	small2, big2 := beam.ParDo2(pong, multiFn, words, beam.SideInput{Input: big1})  // big-sample  (pong). More words are small.
-	_, big3 := beam.ParDo2(ping, multiFn, big2, beam.SideInput{Input: small1})      // small-sample big (ping). All words are big.
-	small4, _ := beam.ParDo2(pong, multiFn, small2, beam.SideInput{Input: big3})    // big-sample small (pong). All words are small.
+	small1, big1 := beamgo2.ParDo2Side1(ping, beamgo2.DoFn2Side1Emit(multiFn), words, words) // self-sample (ping)
+	small2, big2 := beamgo2.ParDo2Side1(pong, beamgo2.DoFn2Side1Emit(multiFn), words, big1)  // big-sample  (pong). More words are small.
+	_, big3 := beamgo2.ParDo2Side1(ping, beamgo2.DoFn2Side1Emit(multiFn), big2, small1)      // small-sample big (ping). All words are big.
+	small4, _ := beamgo2.ParDo2Side1(pong, beamgo2.DoFn2Side1Emit(multiFn), small2, big3)    // big-sample small (pong). All words are small.
 
 	return small4, big3
 }
@@ -74,8 +74,8 @@ func multiFn(word string, sample []string, small, big func(string)) error {
 	return nil
 }
 
-func subset(s beam.Scope, a, b beam.PCollection) {
-	beam.ParDo0(s, subsetFn, beam.Impulse(s), beam.SideInput{Input: a}, beam.SideInput{Input: b})
+func subset(s beam.Scope, a, b beamgo2.TypedPCollection(string)) {
+	beamgo2.ParDo0Side2(s, beamgo2.DoFn0Side2Reiter(subsetFn), beamgo2.Impulse(s), a, b)
 }
 
 func subsetFn(_ []byte, a, b func(*string) bool) error {
@@ -112,18 +112,18 @@ func main() {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	lines := textio.Read(s, *input)
-	words := beam.ParDo(s, extractFn, lines)
+	lines := beamgo2.Read2(string)(s, *input)
+	words := beamgo2.ParDo(s, beamgo2.DoFnEmit(extractFn), lines)
 
 	// Run baseline and stitch; then compare them.
-	small, big := beam.ParDo2(s, multiFn, words, beam.SideInput{Input: words})
+	small, big := beamgo2.ParDo2Side1(s, multiFn, words, words)
 	small2, big2 := stitch(s, words)
 
 	subset(s, small, small2)
 	subset(s, big2, big)
 
-	textio.Write(s, *output+"small.txt", small2)
-	textio.Write(s, *output+"big.txt", big2)
+	beamgo2.Write(s, *output+"small.txt", small2)
+	beamgo2.Write(s, *output+"big.txt", big2)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

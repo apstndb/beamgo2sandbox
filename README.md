@@ -9,4 +9,4 @@ A personal sandbox project of Apache Beam Go SDK wrapper to examine Go 2 Contrac
 
 ## References
 * RFC: Apache Beam Go SDK design https://docs.google.com/document/d/1yj0_hxq2J1iestjFUUrm_BVQLsFxQiiqtcFhgodzIgM/edit
-
+* Contracts - Draft Design https://go.googlesource.com/proposal/+/master/design/go2draft-contracts.md
